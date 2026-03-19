@@ -1,0 +1,594 @@
+{
+  "name": "Figma Design to AEM CF",
+  "nodes": [
+    {
+      "parameters": {
+        "url": "=https://api.figma.com/v1/files/{{$json.key}}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        672,
+        -96
+      ],
+      "id": "bd0816a0-3532-41ab-bc44-0ee7ba1166d8",
+      "name": "Figma - Get File",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SRnT6qwsWkYg7cCS",
+          "name": "Bearer Auth account"
+        },
+        "httpHeaderAuth": {
+          "id": "lmdcWzd9Yxr2JHJs",
+          "name": "Header Auth account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:4502/libs/dam/cfm/admin/content/v2/createfragment/submit/_jcr_content.html",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "_charset_",
+              "value": "utf-8"
+            },
+            {
+              "name": "parentPath",
+              "value": "/content/dam/wknd/en/content-fragments/articles"
+            },
+            {
+              "name": "template",
+              "value": "/conf/wknd/settings/dam/cfm/models/article"
+            },
+            {
+              "name": "./jcr:title",
+              "value": "={{$json.title}}"
+            },
+            {
+              "name": "name",
+              "value": "={{$json.slug.toLowerCase().replace(/[^a-z0-9-]/g, '') + '-' + Date.now()}}"
+            },
+            {
+              "name": "description"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2144,
+        -240
+      ],
+      "id": "6e1d4984-b3cf-46ff-aec1-f0634a302470",
+      "name": "AEM - Create CF",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "yFzd9yLhF7ocHP1A",
+          "name": "AEM Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://host.docker.internal:4502{{$json.cfPath}}.cfm.content.json",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": ":type",
+              "value": "multiple"
+            },
+            {
+              "name": ":newVersion",
+              "value": "false"
+            },
+            {
+              "name": "_charset_",
+              "value": "utf-8"
+            },
+            {
+              "name": "title",
+              "value": "={{$json.title}}"
+            },
+            {
+              "name": "author",
+              "value": "={{$json.author}}"
+            },
+            {
+              "name": "date",
+              "value": "={{$json.date}}"
+            },
+            {
+              "name": "body",
+              "value": "={{$json.body}}"
+            },
+            {
+              "name": "seoTitle",
+              "value": "={{$json.seoTitle}}"
+            },
+            {
+              "name": "metaDescription",
+              "value": "={{$json.metaDescription}}"
+            },
+            {
+              "name": "slug",
+              "value": "={{$json.slug}}"
+            },
+            {
+              "name": "keywords",
+              "value": "={{$json.keywords}}"
+            },
+            {
+              "name": "category",
+              "value": "={{$json.category}}"
+            },
+            {
+              "name": "ogTitle",
+              "value": "={{$json.ogTitle}}"
+            },
+            {
+              "name": "ogDescription",
+              "value": "={{$json.ogDescription}}"
+            },
+            {
+              "name": "image",
+              "value": "=/content/dam/wknd/en/content-fragments/articles/{{$json.slug}}.png"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2816,
+        -96
+      ],
+      "id": "7b4c1c4e-0bac-4c35-94b4-0aaf594b47e7",
+      "name": "AEM - Load Data to CF",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "yFzd9yLhF7ocHP1A",
+          "name": "AEM Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Get HTML from current item\nconst html = item.json.data;\n\n// Use regex to extract the CF path\nconst match = html.match(/\\/content\\/dam\\/wknd\\/en\\/content-fragments\\/articles\\/[a-zA-Z0-9\\-]+/);\n\nif (!match) {\n  throw new Error(\"CF path not found in HTML response\");\n}\n\n\nconst cfPath = match[0]\n\nreturn {\n  json: {\n    cfPath: cfPath // e.g., /content/dam/wknd/en/content-fragments/finding-freedom-in-the-mountain-1773875324049\n  }\n};"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2368,
+        -240
+      ],
+      "id": "b6867f24-8545-4e9b-89d6-3ea6787dce5a",
+      "name": "Get CF name"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get all items from Merge node\nconst items = $input.all();\n\n// Separate AI items (have output[]) and article items (have title)\nconst aiItems = items.filter(i => i.json.output);\nconst articleItems = items.filter(i => i.json.title);\n\n// Build one result per article/AI pair\nconst results = [];\n\nfor (let idx = 0; idx < articleItems.length; idx++) {\n  const articleItem = articleItems[idx];\n  const aiItem = aiItems[idx];\n\n  // Extract AI raw text\n  const raw = aiItem.json.output[0].content[0].text;\n\n  // Clean markdown fences\n  const cleaned = raw\n    .replace(/```json/g, \"\")\n    .replace(/```/g, \"\")\n    .trim();\n\n  // Parse AI JSON\n  let seo;\n  try {\n    seo = JSON.parse(cleaned);\n  } catch (e) {\n    throw new Error(`Failed to parse AI JSON for item ${idx}: ${e.message}`);\n  }\n\n  // Combine into one object per file\n  results.push({\n    json: {\n      title: articleItem.json.title,\n      author: articleItem.json.author,\n      date: articleItem.json.date,\n      body: articleItem.json.body,\n      thumbnail_url: articleItem.json.thumbnail_url,\n      figmaKey: articleItem.json.key,\n      seoTitle: seo.seoTitle,\n      metaDescription: seo.metaDescription,\n      slug: seo.slug,\n      keywords: Array.isArray(seo.keywords) ? seo.keywords.join(',') : seo.keywords,\n      category: seo.category,\n      ogTitle: seo.ogTitle,\n      ogDescription: seo.ogDescription,\n      imageRef: articleItem.json.imageRef,\n      imageNodeId: articleItem.json.imageNodeId\n    }\n  });\n}\n\nreturn results;"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1696,
+        -96
+      ],
+      "id": "409538bf-a8ee-4a4a-ba53-c49cf3099c29",
+      "name": "Clean the JSON"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        1472,
+        -96
+      ],
+      "id": "fc818545-806e-4741-8e53-dd0773079257",
+      "name": "Merge into JSON"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4.1-MINI"
+        },
+        "responses": {
+          "values": [
+            {
+              "content": "=Given this article:\nTitle: {{$json.title}}\nBody: {{$json.body}}\n\nReturn JSON with:\n- seoTitle (max 60 chars)\n- metaDescription (max 160 chars)\n- slug\n- keywords (array of 5 keywords)\n- category (one word)\n- ogTitle\n- ogDescription\n- ogType (article)\n\nOnly return valid JSON"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 2.1,
+      "position": [
+        1120,
+        -176
+      ],
+      "id": "42c61dab-bd12-4efd-8f9e-63ac6d1c006f",
+      "name": "Generate SEO tags",
+      "alwaysOutputData": false,
+      "executeOnce": false,
+      "credentials": {
+        "openAiApi": {
+          "id": "NJjr3PyOEKiDo8KF",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        -96
+      ],
+      "id": "3ecccb7e-41af-48c3-91fd-6ce57e699ee2",
+      "name": "Execute workflow"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Loop over input items and extract article fields\nconst results = [];\n\nfor (const item of $input.all()) {\n\n  const root = item.json.document;\n\n  let title = \"\";\n  let author = \"\";\n  let date = \"\";\n  let bodyParts = [];\n  let imageNodeId = \"\";\n  let imageRef = \"\";\n\n  function walk(node) {\n\n    // Extract IMAGE node ID from background\n    if (!imageNodeId && node.fills && node.fills.length > 0) {\n  const imgFill = node.fills.find(f => f.type === 'IMAGE');\n  if (imgFill) {\n    imageRef = imgFill.imageRef;\n    imageNodeId = node.id; // ← capture the node ID (e.g. \"6:8\")\n  }\n}\n\n    if (node.type === \"TEXT\" && node.characters) {\n\n      const text = node.characters.trim();\n\n      // Title\n      if (!title && node.style?.fontSize === 48) {\n        title = text;\n      }\n\n      // Author\n      else if (text.startsWith(\"By \")) {\n        author = text.replace(\"By \", \"\");\n      }\n\n      // Date\n      else if (/\\w+ \\d{1,2}, \\d{4}/.test(text)) {\n        date = text;\n      }\n\n      // Body paragraphs\n      else if (node.style?.fontSize === 16) {\n        bodyParts.push(text);\n      }\n    }\n\n    if (node.children) {\n      node.children.forEach(walk);\n    }\n  }\n\n  walk(root);\n\n  item.json.article = {\n    title,\n    author,\n    date,\n    body: bodyParts.join(\"\\n\\n\"),\n    imageRef,\n    imageNodeId\n  };\n\n  results.push(item);\n}\n\nreturn results.map(item => item.json.article);"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        896,
+        -96
+      ],
+      "id": "e33099a5-a3bc-43a2-9932-5df6710080c0",
+      "name": "Parse content from Figma"
+    },
+    {
+      "parameters": {
+        "url": "https://api.figma.com/v1/projects/573964865/files",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        224,
+        -96
+      ],
+      "id": "1b62b7b7-d0bf-496a-87bd-cb1414708625",
+      "name": "Figma - Get Files",
+      "credentials": {
+        "httpBearerAuth": {
+          "id": "SRnT6qwsWkYg7cCS",
+          "name": "Bearer Auth account"
+        },
+        "httpHeaderAuth": {
+          "id": "9NI81PJPCTK1SAMJ",
+          "name": "Header Auth account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Get node-scoped static data\nconst staticData = $getWorkflowStaticData('node');\nstaticData.processedFiles = staticData.processedFiles || [];\n\n// Filter new files\nconst allFiles = $input.all().flatMap(item => item.json.files);\n\nconst newReadyFiles = allFiles.filter(f => {\n    return f.name.includes('[Ready]') && !staticData.processedFiles.includes(f.key);\n});\n\n// Save processed file keys\nstaticData.processedFiles.push(...newReadyFiles.map(f => f.key));\n\n// Return only new ready files\nreturn newReadyFiles.map(f => ({ json: f }));"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        448,
+        -96
+      ],
+      "id": "44a30c61-ed75-4da9-a142-c9f0796ffeaa",
+      "name": "Fetch files with [Ready] state"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=http://host.docker.internal:4502/api/assets/wknd/en/content-fragments/articles/{{$('Clean the JSON').item.json.slug}}.png",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpBasicAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "image/png"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "binaryData",
+        "inputDataFieldName": "data",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2368,
+        48
+      ],
+      "id": "4f79f40e-e16a-4348-9914-570d568a726c",
+      "name": "AEM - Create Asset",
+      "credentials": {
+        "httpBasicAuth": {
+          "id": "yFzd9yLhF7ocHP1A",
+          "name": "AEM Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.figma.com/v1/images/{{ $('Fetch files with [Ready] state').item.json.key }}?ids={{ $json.imageNodeId }}",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        1920,
+        48
+      ],
+      "id": "f9b2764e-f0ac-4e4f-bd81-eef66e055703",
+      "name": "Figma - Get Asset URL",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "bhdPm8oTVCOt7SVB",
+          "name": "Header Auth account 3"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "={{ Object.values($json.images) }}\n",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "file"
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        2144,
+        48
+      ],
+      "id": "df3dfcba-b0ae-45dc-885e-0b08500fa126",
+      "name": "Download Asset"
+    },
+    {
+      "parameters": {
+        "mode": "combine",
+        "combineBy": "combineByPosition",
+        "numberInputs": 3,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3.2,
+      "position": [
+        2592,
+        -112
+      ],
+      "id": "de88bbfd-22bf-4fba-9529-340851a46b79",
+      "name": "Merge all data to JSON"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Figma - Get File": {
+      "main": [
+        [
+          {
+            "node": "Parse content from Figma",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AEM - Create CF": {
+      "main": [
+        [
+          {
+            "node": "Get CF name",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get CF name": {
+      "main": [
+        [
+          {
+            "node": "Merge all data to JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean the JSON": {
+      "main": [
+        [
+          {
+            "node": "AEM - Create CF",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge all data to JSON",
+            "type": "main",
+            "index": 1
+          },
+          {
+            "node": "Figma - Get Asset URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge into JSON": {
+      "main": [
+        [
+          {
+            "node": "Clean the JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate SEO tags": {
+      "main": [
+        [
+          {
+            "node": "Merge into JSON",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute workflow": {
+      "main": [
+        [
+          {
+            "node": "Figma - Get Files",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse content from Figma": {
+      "main": [
+        [
+          {
+            "node": "Generate SEO tags",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Merge into JSON",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Figma - Get Files": {
+      "main": [
+        [
+          {
+            "node": "Fetch files with [Ready] state",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch files with [Ready] state": {
+      "main": [
+        [
+          {
+            "node": "Figma - Get File",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AEM - Load Data to CF": {
+      "main": [
+        []
+      ]
+    },
+    "Figma - Get Asset URL": {
+      "main": [
+        [
+          {
+            "node": "Download Asset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Download Asset": {
+      "main": [
+        [
+          {
+            "node": "AEM - Create Asset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AEM - Create Asset": {
+      "main": [
+        [
+          {
+            "node": "Merge all data to JSON",
+            "type": "main",
+            "index": 2
+          }
+        ]
+      ]
+    },
+    "Merge all data to JSON": {
+      "main": [
+        [
+          {
+            "node": "AEM - Load Data to CF",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "72f15c5a-c720-4401-912f-d28283099cea",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "ae6ad3da8c01759852135f7163c76dad7fde8e545c0345331f01f11b72dba862"
+  },
+  "id": "I6QiyGvguMwQySC2",
+  "tags": []
+}

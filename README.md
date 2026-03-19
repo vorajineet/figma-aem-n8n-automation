@@ -1,8 +1,3 @@
-Now I can see the full workflow. I can identify all the nodes clearly. Here's a detailed `README.md` you can use: [localhost](http://localhost:5678/workflow/I6QiyGvguMwQySC2)
-
-***
-
-```markdown
 # Figma Design to AEM Content Fragment — n8n Workflow
 
 An automated n8n workflow that bridges **Figma** and **Adobe Experience Manager (AEM)**. It reads design files from a Figma project, extracts content and assets, generates AI-powered SEO tags via OpenAI, and publishes everything as structured **Content Fragments** and **Assets** in AEM — with zero manual copying.
